@@ -1,0 +1,1497 @@
+<!DOCTYPE html>
+<html lang="th" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Z-Circle: เกมเอาชีวิตรอดในวงล้อมซอมบี้กลายพันธุ์</title>
+    <!-- นำเข้าฟอนต์ Prompt, Patrick Hand และ JetBrains Mono จาก Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Patrick+Hand&family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- นำเข้า Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- นำเข้า Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Prompt', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                        hand: ['Patrick Hand', 'cursive'],
+                    },
+                    colors: {
+                        tactical: {
+                            bg: '#090d16',
+                            card: '#111827',
+                            border: '#1f2937',
+                            accent: '#10b981',
+                            danger: '#ef4444',
+                            bio: '#a855f7',
+                            gold: '#f59e0b'
+                        }
+                    },
+                    animation: {
+                        'pulse-fast': 'pulse 1.2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #090d16;
+            color: #f3f4f6;
+            background-image: 
+                radial-gradient(circle at 15% 15%, rgba(16, 185, 129, 0.06) 0%, transparent 40%),
+                radial-gradient(circle at 85% 85%, rgba(168, 85, 247, 0.06) 0%, transparent 40%),
+                linear-gradient(to right, rgba(31, 41, 55, 0.25) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(31, 41, 55, 0.25) 1px, transparent 1px);
+            background-size: 100% 100%, 100% 100%, 32px 32px, 32px 32px;
+        }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+            border-radius: 8px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 8px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+
+        .glow-emerald { box-shadow: 0 0 15px rgba(16, 185, 129, 0.35); }
+        .glow-red { box-shadow: 0 0 18px rgba(239, 68, 68, 0.55); }
+        .glow-purple { box-shadow: 0 0 18px rgba(168, 85, 247, 0.55); }
+        .glow-gold { box-shadow: 0 0 25px rgba(245, 158, 11, 0.65); }
+        .glow-blue { box-shadow: 0 0 18px rgba(59, 130, 246, 0.55); }
+
+        /* พื้นหลังกระดาษคราฟท์ (Kraft Paper Texture) โทนอบอุ่นเหมือนภาพตัวอย่าง */
+        .kraft-paper-arena {
+            background-color: #c69f78;
+            background-image: 
+                radial-gradient(circle at 50% 50%, rgba(255, 244, 230, 0.22) 0%, rgba(139, 98, 60, 0.28) 100%),
+                repeating-linear-gradient(45deg, rgba(92, 62, 34, 0.03) 0px, rgba(92, 62, 34, 0.03) 2px, transparent 2px, transparent 5px),
+                repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.04) 0px, rgba(255, 255, 255, 0.04) 1px, transparent 1px, transparent 4px);
+            box-shadow: inset 0 0 36px rgba(66, 42, 20, 0.45);
+        }
+
+        @keyframes lungeForward {
+            0% { transform: translate(0, 0) scale(1); }
+            45% { transform: translate(var(--dx, 0px), var(--dy, 0px)) scale(1.12); }
+            100% { transform: translate(0, 0) scale(1); }
+        }
+        .animate-lunge {
+            animation: lungeForward 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased selection:bg-emerald-500/30 selection:text-emerald-200">
+
+    <!-- แถบแจ้งเตือน (Toast Notification แทน alert()) -->
+    <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- ส่วนหัวของเว็บไซต์ (Header) -->
+    <header class="border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-md sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center shadow-lg shadow-emerald-950/50 border border-emerald-400/30">
+                    <i data-lucide="biohazard" class="w-6 h-6 text-white"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="px-2 py-0.5 text-[10px] font-mono font-semibold uppercase tracking-wider rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">โครงงานคณิตศาสตร์</span>
+                        <span class="text-xs text-slate-400 hidden md:inline">ต่อยอดจากปัญหาของโจเซฟัส (Josephus Problem)</span>
+                    </div>
+                    <h1 class="text-lg sm:text-xl font-bold bg-gradient-to-r from-white via-slate-200 to-emerald-300 bg-clip-text text-transparent">
+                        Z-Circle: เกมเอาชีวิตรอดในวงล้อมซอมบี้กลายพันธุ์
+                    </h1>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <a href="#rules-section" class="px-3.5 py-2 rounded-xl bg-slate-800/90 hover:bg-slate-700/90 text-slate-200 text-xs sm:text-sm font-medium border border-slate-700 transition flex items-center gap-1.5">
+                    <i data-lucide="book-open" class="w-4 h-4 text-emerald-400"></i>
+                    <span>กติกาและสูตรตามเล่มรายงาน</span>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- เนื้อหาหลัก (Main Content) -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+        <!-- แถวที่ 1: แผงควบคุม (Control Panel) และ ผลลัพธ์สรุปทันที (Instant Result Banner) -->
+        <section class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <!-- แผงตั้งค่าพารามิเตอร์ -->
+            <div class="lg:col-span-7 bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl backdrop-blur-sm">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-base font-semibold text-white flex items-center gap-2">
+                        <i data-lucide="sliders" class="w-5 h-5 text-emerald-400"></i>
+                        <span>กำหนดค่าพารามิเตอร์เริ่มต้น (Parameters)</span>
+                    </h2>
+                    <div class="flex gap-1.5">
+                        <button onclick="setPreset(13, 1)" class="px-2.5 py-1 text-xs rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 font-medium transition">n=13 (ตัวอย่าง)</button>
+                        <button onclick="setPreset(7, 1)" class="px-2.5 py-1 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">n=7, S=1</button>
+                        <button onclick="setPreset(15, 1)" class="px-2.5 py-1 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">n=15, S=1</button>
+                        <button onclick="setPreset(10, 1)" class="px-2.5 py-1 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">n=10 (คู่)</button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <!-- Input n -->
+                    <div class="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800/90">
+                        <label for="input-n" class="block text-xs font-medium text-slate-400 mb-1">
+                            จำนวนผู้รอดชีวิตเริ่มต้น (<span class="font-mono text-emerald-400 font-bold">n</span> ≥ 2)
+                        </label>
+                        <div class="flex items-center gap-2">
+                            <input type="number" id="input-n" min="2" max="1000000" value="13" 
+                                class="w-full bg-slate-900 border border-slate-700 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-xl px-3.5 py-2 text-white font-mono text-lg font-bold outline-none transition">
+                            <span id="parity-badge" class="px-2.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                                จำนวนคี่
+                            </span>
+                        </div>
+                        <p class="text-[11px] text-slate-500 mt-1.5">รองรับจำนวนเต็มบวก n ≥ 2 ใด ๆ (เช่น n = 2 ถึง 1,000,000)</p>
+                    </div>
+
+                    <!-- Input S -->
+                    <div class="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800/90">
+                        <label for="input-s" class="block text-xs font-medium text-slate-400 mb-1">
+                            ตำแหน่งผู้เริ่มยิงคนแรก (<span class="font-mono text-sky-400 font-bold">S</span> ∈ {1..n})
+                        </label>
+                        <div class="flex items-center gap-2">
+                            <input type="number" id="input-s" min="1" max="13" value="1" 
+                                class="w-full bg-slate-900 border border-slate-700 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 rounded-xl px-3.5 py-2 text-white font-mono text-lg font-bold outline-none transition">
+                            <button onclick="resetStartToOne()" class="px-2.5 py-2 rounded-lg text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 whitespace-nowrap transition" title="รีเซ็ตผู้เริ่มเล่นเป็นคนที่ 1">
+                                เริ่มที่ 1
+                            </button>
+                        </div>
+                        <p class="text-[11px] text-slate-500 mt-1.5">กำหนดผู้เริ่มยิงคนแรกในวงกลม (ค่ามาตรฐานโครงงาน S = 1)</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- การ์ดแสดงผลลัพธ์จากสูตรคณิตศาสตร์ทันที -->
+            <div class="lg:col-span-5 bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950/30 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col justify-between relative overflow-hidden">
+                <div class="absolute -right-6 -top-6 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none"></div>
+                
+                <div>
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-xs font-semibold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                            <i data-lucide="calculator" class="w-4 h-4"></i>
+                            ผลลัพธ์จากการคำนวณสูตรทันที
+                        </span>
+                        <span id="formula-tag" class="font-mono text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+                            Z(9, 1)
+                        </span>
+                    </div>
+
+                    <div id="result-display-box" class="bg-slate-950/80 border border-slate-800/90 rounded-xl p-4 my-2 flex items-center gap-4">
+                        <div id="result-icon-wrapper" class="w-14 h-14 rounded-2xl bg-amber-500/15 border border-amber-500/40 flex items-center justify-center shrink-0">
+                            <i data-lucide="crown" class="w-8 h-8 text-amber-400"></i>
+                        </div>
+                        <div>
+                            <div id="result-subtitle" class="text-xs text-slate-400">ผู้รอดชีวิตคนสุดท้าย (ตำแหน่งหมายเลข)</div>
+                            <div id="result-main-value" class="text-3xl sm:text-4xl font-bold font-mono text-amber-400 tracking-tight">
+                                1
+                            </div>
+                            <div id="result-desc" class="text-xs text-emerald-400 mt-0.5">
+                                รอดชีวิตเพียง 1 คนตามสมมติฐาน (n เป็นจำนวนคี่)
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-3 gap-2 pt-2 text-center">
+                    <div class="bg-slate-950/60 rounded-xl p-2 border border-slate-800/70">
+                        <div class="text-[11px] text-slate-400">ค่าพื้นฐาน Z(n)</div>
+                        <div id="stat-zn" class="font-mono font-bold text-sm text-white mt-0.5">1</div>
+                    </div>
+                    <div class="bg-slate-950/60 rounded-xl p-2 border border-slate-800/70">
+                        <div class="text-[11px] text-slate-400">จำนวนรอบทั้งหมด</div>
+                        <div id="stat-rounds" class="font-mono font-bold text-sm text-sky-400 mt-0.5">4 รอบ</div>
+                    </div>
+                    <div class="bg-slate-950/60 rounded-xl p-2 border border-slate-800/70">
+                        <div class="text-[11px] text-slate-400">สถานะปัจจุบัน</div>
+                        <div id="stat-status" class="font-medium text-xs text-emerald-400 mt-1">พร้อมจำลอง</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- แถวที่ 2: พื้นที่แสดงผลแบบวงกลม (Circle Visualization) และ บันทึกเหตุการณ์ & วิธีคิด (Log & Math Steps) -->
+        <section class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <!-- กล่องแสดงวงกลมจำลอง (Interactive Circle Canvas/SVG) -->
+            <div class="lg:col-span-7 bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col">
+                <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                    <h2 class="text-base font-semibold text-white flex items-center gap-2">
+                        <i data-lucide="target" class="w-5 h-5 text-emerald-400"></i>
+                        <span>แบบจำลองวงล้อมซอมบี้ (Circle Arena)</span>
+                    </h2>
+                    <span id="round-indicator" class="px-3 py-1 rounded-full text-xs font-mono font-semibold bg-slate-800 text-emerald-400 border border-slate-700">
+                        เริ่มต้น (รอบที่ 0)
+                    </span>
+                </div>
+
+                <!-- คำอธิบายสัญลักษณ์ (Legend) -->
+                <div class="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-slate-300 bg-slate-950/70 px-3.5 py-2.5 rounded-xl border border-slate-800/80 mb-3">
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-3 h-3 rounded-full bg-emerald-500 inline-block"></span>
+                        <span>รอดชีวิต</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-3 h-3 rounded-full bg-sky-500 ring-2 ring-sky-300/50 inline-block"></span>
+                        <span>🎯 ผู้ยิง (S)</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-3 h-3 rounded-full bg-red-500 inline-block"></span>
+                        <span>❌ ถูกยิงสกัด (K)</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-3 h-3 rounded-full bg-purple-500 inline-block"></span>
+                        <span>☣️ ตายตามจากเชื้อพิษ (K+1)</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-3 h-3 rounded-full bg-slate-700 inline-block"></span>
+                        <span>คัดออกรอบก่อน (❌ / ☣️)</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-3 h-3 rounded-full bg-amber-400 inline-block"></span>
+                        <span>👑 ผู้รอดชีวิตคนสุดท้าย</span>
+                    </div>
+                </div>
+
+                <!-- แผงควบคุมการเดินเกมที่วางติดกับแบบจำลองวงกลมโดยตรง -->
+                <div class="flex flex-wrap items-center justify-between gap-2.5 bg-slate-950/90 p-3 rounded-xl border border-emerald-500/25 shadow-inner mb-3">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button id="btn-step" onclick="stepForward()" class="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs sm:text-sm shadow-lg shadow-amber-950/40 transition flex items-center gap-1.5 active:scale-95">
+                            <i data-lucide="step-forward" class="w-4 h-4"></i>
+                            <span>ทีละขั้น (Step)</span>
+                        </button>
+                        <button id="btn-play-pause" onclick="togglePlayPause()" class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs sm:text-sm shadow-lg shadow-emerald-950/50 transition flex items-center gap-1.5 active:scale-95">
+                            <i id="icon-play-pause" data-lucide="play" class="w-4 h-4"></i>
+                            <span id="text-play-pause">เล่นอัตโนมัติ</span>
+                        </button>
+                        <button onclick="resetSimulation()" class="px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-xs sm:text-sm border border-slate-700 transition flex items-center gap-1.5 active:scale-95">
+                            <i data-lucide="rotate-ccw" class="w-4 h-4 text-slate-400"></i>
+                            <span>รีเซ็ต</span>
+                        </button>
+                    </div>
+
+                    <div class="flex items-center gap-1.5 bg-slate-900 px-2.5 py-2 rounded-xl border border-slate-800">
+                        <i data-lucide="gauge" class="w-3.5 h-3.5 text-slate-400"></i>
+                        <span class="text-xs text-slate-400 hidden sm:inline">ความเร็ว:</span>
+                        <select id="sim-speed" class="bg-transparent text-xs font-semibold text-emerald-400 outline-none cursor-pointer">
+                            <option value="1400" class="bg-slate-900">ช้า (1.4s)</option>
+                            <option value="800" selected class="bg-slate-900">ปกติ (0.8s)</option>
+                            <option value="350" class="bg-slate-900">เร็ว (0.35s)</option>
+                            <option value="100" class="bg-slate-900">เร็วมาก (0.1s)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- แถบสรุปเหตุการณ์ประจำรอบ (Round Banner) โดดเด่นเหนือวงกลม -->
+                <div id="round-event-banner" class="mb-3 px-4 py-3 rounded-xl bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 border border-slate-700/90 text-xs sm:text-sm text-slate-200 flex items-center justify-center text-center shadow-md min-h-[48px]">
+                    <span id="current-action-text" class="font-medium text-emerald-300">กดปุ่ม "ทีละขั้น (Step)" หรือ "เล่นอัตโนมัติ" เพื่อดูการยิงสกัดและการติดเชื้อเสียชีวิตตาม</span>
+                </div>
+
+                <!-- พื้นที่แสดงผล SVG วงกลม (Top-Down View บนพื้นหลังกระดาษคราฟท์) -->
+                <div id="arena-container" class="relative w-full aspect-square max-h-[520px] mx-auto kraft-paper-arena rounded-2xl border-2 border-amber-900/60 flex items-center justify-center overflow-hidden shadow-inner">
+                    <!-- SVG จะถูกสร้างผ่าน JavaScript -->
+                    <svg id="circle-svg" viewBox="0 0 560 560" class="w-full h-full max-w-[520px] max-h-[520px] select-none"></svg>
+
+                    <!-- โหมดจำนวนมาก (n > 60) -->
+                    <div id="large-n-overlay" class="hidden absolute inset-0 bg-slate-950/95 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
+                        <div class="w-16 h-16 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center mb-4">
+                            <i data-lucide="cpu" class="w-8 h-8 text-emerald-400"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-white mb-2">โหมดคำนวณจำนวนมาก (n > 60)</h3>
+                        <p class="text-sm text-slate-400 max-w-md mb-4">
+                            เนื่องจากจำนวนผู้เล่น <span id="large-n-val" class="font-mono text-emerald-400 font-bold">n</span> มีจำนวนมาก ระบบจึงข้ามการวาดตัวละครแบบวงกลมเพื่อประสิทธิภาพสูงสุด และคำนวณคำตอบที่แม่นยำด้วย <strong class="text-slate-200">สูตรฟังก์ชันเวียนเกิดและเลขคณิตมอดุโล</strong> ทันที
+                        </p>
+                        <div class="px-5 py-3 rounded-xl bg-slate-900 border border-slate-700 font-mono text-sm text-amber-400">
+                            ผลลัพธ์ผู้รอดชีวิตคนสุดท้าย: <span id="large-n-ans" class="font-bold text-lg">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- กล่องแสดงบันทึกเหตุการณ์ทีละขั้น (Log) และ การพิสูจน์สูตร (Math Breakdown) -->
+            <div class="lg:col-span-5 flex flex-col gap-6">
+                
+                <!-- แท็บสลับดู บันทึกการจำลอง vs ขั้นตอนการคำนวณสูตร -->
+                <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl flex-grow flex flex-col">
+                    <div class="flex items-center gap-2 border-b border-slate-800 pb-3 mb-4">
+                        <button id="tab-btn-log" onclick="switchRightTab('log')" class="px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold bg-emerald-600 text-white transition flex items-center gap-1.5">
+                            <i data-lucide="list-ordered" class="w-4 h-4"></i>
+                            <span>บันทึกการจำลอง (Step Log)</span>
+                        </button>
+                        <button id="tab-btn-math" onclick="switchRightTab('math')" class="px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition flex items-center gap-1.5">
+                            <i data-lucide="sigma" class="w-4 h-4"></i>
+                            <span>วิธีคิดตามสูตรคณิตศาสตร์</span>
+                        </button>
+                    </div>
+
+                    <!-- เนื้อหาแท็บ 1: บันทึกการจำลอง -->
+                    <div id="tab-content-log" class="flex-grow flex flex-col">
+                        <div class="flex items-center justify-between text-xs text-slate-400 mb-2">
+                            <span>ลำดับการยิงสกัดและการติดเชื้อเสียชีวิตตาม</span>
+                            <span id="alive-counter" class="font-mono text-emerald-400">รอดชีวิต: 9/9 คน</span>
+                        </div>
+                        <div id="simulation-log-list" class="flex-grow max-h-[380px] overflow-y-auto space-y-2 pr-1">
+                            <!-- รายการ Log จะถูกเติมด้วย JS -->
+                        </div>
+                    </div>
+
+                    <!-- เนื้อหาแท็บ 2: ขั้นตอนการคำนวณสูตรเวียนเกิด -->
+                    <div id="tab-content-math" class="hidden flex-grow flex-col space-y-3 max-h-[440px] overflow-y-auto pr-1">
+                        <div class="bg-slate-950/90 border border-slate-800 rounded-xl p-3.5 text-xs space-y-2">
+                            <div class="font-semibold text-emerald-400 flex items-center gap-1.5">
+                                <i data-lucide="function-square" class="w-4 h-4"></i>
+                                <span>สูตรฟังก์ชันเวียนเกิดฉบับสมบูรณ์ (ตามเล่มรายงาน)</span>
+                            </div>
+                            <ul class="space-y-1.5 text-slate-300 font-mono text-[11px] sm:text-xs bg-slate-900/90 p-3 rounded-lg border border-slate-800">
+                                <li>• กรณี n เป็นจำนวนคู่: <span class="text-rose-400 font-bold">Z(n) = 0</span> (ไม่มีผู้รอดชีวิต)</li>
+                                <li>• กรณี n เป็นจำนวนคี่: <span class="text-emerald-400 font-bold">Z(n) = (Z(n-2) + 3) (mod n)</span></li>
+                                <li class="text-slate-400 pl-3">โดยที่ Z(1) = Z(3) = 1 (หากหารลงตัวได้เศษ 0 ให้แทนด้วย n)</li>
+                                <li>• กรณีผู้เริ่มเล่นตำแหน่ง S ใด ๆ (n คี่): <span class="text-amber-400 font-bold">Z(n, S) = (Z(n) + S - 1) (mod n)</span></li>
+                            </ul>
+                        </div>
+
+                        <div class="bg-slate-950/90 border border-slate-800 rounded-xl p-3.5">
+                            <div class="text-xs font-semibold text-sky-400 mb-2">ลำดับการลดรูปฟังก์ชันเวียนเกิดสำหรับกรณีนี้:</div>
+                            <div id="math-recurrence-steps" class="space-y-1.5 font-mono text-xs text-slate-300">
+                                <!-- ขั้นตอนการคำนวณจะถูกสร้างด้วย JS -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- แถวที่ 3: กติกาและสูตรคณิตศาสตร์ฉบับสมบูรณ์ตามเล่มรายงาน -->
+        <section id="rules-section" class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-5">
+            <div class="flex items-center gap-3 border-b border-slate-800 pb-4">
+                <div class="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center shrink-0">
+                    <i data-lucide="book-open-check" class="w-5 h-5 text-emerald-400"></i>
+                </div>
+                <div>
+                    <h2 class="text-base sm:text-lg font-bold text-white">กติกาและสูตรคณิตศาสตร์ (อ้างอิงตามเล่มรายงานโครงงาน)</h2>
+                    <p class="text-xs text-slate-400">นิยามตัวแปร เงื่อนไขการเดินเกม และสูตรฟังก์ชันเวียนเกิดฉบับสมบูรณ์ (บทที่ 1, บทที่ 3 และบทที่ 4)</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 text-xs sm:text-sm">
+                <!-- กล่องที่ 1: นิยามของตัวแปรและสัญลักษณ์ -->
+                <div class="bg-slate-950/85 border border-slate-800 rounded-xl p-4 space-y-2.5">
+                    <h3 class="font-bold text-sky-400 flex items-center gap-2 text-sm">
+                        <i data-lucide="variable" class="w-4 h-4"></i>
+                        <span>1. นิยามของตัวแปรและสัญลักษณ์</span>
+                    </h3>
+                    <ul class="space-y-2 text-slate-300 leading-relaxed">
+                        <li><span class="font-mono font-bold text-emerald-400">n</span> แทน จำนวนผู้รอดชีวิตเริ่มต้นทั้งหมด (<span class="font-mono">n ∈ ℤ⁺, n ≥ 2</span>)</li>
+                        <li><span class="font-mono font-bold text-sky-400">S</span> แทน ตำแหน่งของผู้เล่นที่เริ่มยิงเป็นคนแรก (<span class="font-mono">S ∈ {1, 2, 3, ..., n}</span>)</li>
+                        <li><span class="font-mono font-bold text-red-400">K</span> แทน ตำแหน่งของผู้เล่นที่ถูกยิงสกัดในแต่ละรอบ (<span class="font-mono">K</span> คือผู้เล่นคนถัดไปที่มีชีวิตอยู่ตามเข็มนาฬิกาจากตำแหน่ง <span class="font-mono">S</span>)</li>
+                        <li><span class="font-mono font-bold text-amber-400">Z(n)</span> แทน ฟังก์ชันหาตำแหน่งของผู้รอดชีวิตคนสุดท้าย เมื่อมีผู้เล่น <span class="font-mono">n</span> คน และคนที่ <span class="font-mono">1</span> เป็นผู้เริ่มเล่น</li>
+                        <li><span class="font-mono font-bold text-amber-400">Z(n, S)</span> แทน ฟังก์ชันหาตำแหน่งของผู้รอดชีวิตคนสุดท้าย เมื่อมีผู้เล่น <span class="font-mono">n</span> คน และคนที่ <span class="font-mono">S</span> เป็นผู้เริ่มเล่น</li>
+                    </ul>
+                </div>
+
+                <!-- กล่องที่ 2: กติกาและเงื่อนไขของเกม -->
+                <div class="bg-slate-950/85 border border-slate-800 rounded-xl p-4 space-y-2.5">
+                    <h3 class="font-bold text-emerald-400 flex items-center gap-2 text-sm">
+                        <i data-lucide="shield-alert" class="w-4 h-4"></i>
+                        <span>2. กติกาและเงื่อนไขของเกม</span>
+                    </h3>
+                    <ul class="space-y-2 text-slate-300 leading-relaxed">
+                        <li><strong class="text-white">การจัดวาง:</strong> ผู้รอดชีวิตจำนวน <span class="font-mono">n</span> คน ยืนเป็นวงกลมในตำแหน่งหมายเลข <span class="font-mono">1, 2, 3, ..., n</span> เรียงตามเข็มนาฬิกา</li>
+                        <li><strong class="text-white">การเดินเกม:</strong> ดำเนินไปในทิศทางตามเข็มนาฬิกา ผู้เล่นที่ถึงตาเดิน (ตำแหน่ง <span class="font-mono text-sky-400">S</span>) ต้องยิงสกัดผู้เล่นคนถัดไปที่มีชีวิตอยู่ (ตำแหน่ง <span class="font-mono text-red-400">K</span>) ทันที</li>
+                        <li><strong class="text-white">เงื่อนไขการเสียชีวิตตาม:</strong> เมื่อผู้เล่นตำแหน่ง <span class="font-mono text-red-400">K</span> ถูกกำจัด ร่างของซอมบี้จะระเบิดเชื้อพิษ ทำให้ผู้เล่นที่มีชีวิตอยู่คนถัดไปตามเข็มนาฬิกา (ตำแหน่ง <span class="font-mono text-purple-400">K+1</span>) เสียชีวิตตาม 1 คนต่อ 1 ตา (ไม่มีการตายต่อเนื่องแบบโดมิโน)</li>
+                        <li><strong class="text-white">ตาเดินถัดไป:</strong> ผู้รอดชีวิตคนถัดไปตามเข็มนาฬิกาที่ยังมีชีวิตอยู่จะรับหน้าที่ยิงสกัดในรอบถัดไป วนไปเรื่อย ๆ จนกว่าจะเหลือผู้รอดชีวิต 1 คน หรือเสียชีวิตทั้งหมด</li>
+                    </ul>
+                </div>
+
+                <!-- กล่องที่ 3: สูตรฟังก์ชันเวียนเกิดฉบับสมบูรณ์ -->
+                <div class="bg-slate-950/85 border border-slate-800 rounded-xl p-4 space-y-2.5">
+                    <h3 class="font-bold text-amber-400 flex items-center gap-2 text-sm">
+                        <i data-lucide="sigma" class="w-4 h-4"></i>
+                        <span>3. สูตรฟังก์ชันเวียนเกิดฉบับสมบูรณ์</span>
+                    </h3>
+                    <div class="space-y-2.5 text-slate-300 leading-relaxed">
+                        <div class="p-2.5 rounded-lg bg-slate-900 border border-slate-800">
+                            <div class="font-semibold text-rose-400 text-xs mb-0.5">กรณีจำนวนผู้เล่นเริ่มต้น n เป็นจำนวนคู่:</div>
+                            <div class="font-mono font-bold text-white text-sm">Z(n) = 0</div>
+                            <div class="text-[11px] text-slate-400 mt-0.5">กล่าวคือ ไม่มีผู้รอดชีวิตเหลืออยู่เลยเมื่อจบเกม</div>
+                        </div>
+
+                        <div class="p-2.5 rounded-lg bg-slate-900 border border-slate-800">
+                            <div class="font-semibold text-emerald-400 text-xs mb-0.5">กรณีจำนวนผู้เล่นเริ่มต้น n เป็นจำนวนคี่:</div>
+                            <div class="font-mono font-bold text-emerald-300 text-sm">Z(n) = (Z(n-2) + 3) (mod n)</div>
+                            <div class="text-[11px] text-slate-400 mt-1">
+                                โดยที่ <span class="font-mono text-white">Z(1) = Z(3) = 1</span> (ในระบบเลขคณิตมอดุโลของโครงงาน หากหารลงตัวแล้วได้เศษเป็น 0 ให้แทนตำแหน่งผู้รอดชีวิตเป็นหมายเลข <span class="font-mono text-white">n</span> เพราะไม่มีเก้าอี้หมายเลข 0)
+                            </div>
+                        </div>
+
+                        <div class="p-2.5 rounded-lg bg-slate-900 border border-slate-800">
+                            <div class="font-semibold text-amber-400 text-xs mb-0.5">กรณีขยายผลสู่ผู้เริ่มเล่นตำแหน่งใด ๆ S:</div>
+                            <div class="font-mono font-bold text-amber-300 text-sm">Z(n, S) = (Z(n) + S - 1) (mod n)</div>
+                            <div class="text-[11px] text-slate-400 mt-1">
+                                สำหรับกรณี <span class="font-mono text-white">n</span> เป็นจำนวนคี่ (หากเศษเป็น 0 ให้เป็นตำแหน่งที่ <span class="font-mono text-white">n</span>) และหาก <span class="font-mono text-white">n</span> เป็นจำนวนคู่ <span class="font-mono text-rose-400">Z(n, S) = 0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- แถวที่ 4: ตารางสรุปเปรียบเทียบผลลัพธ์ n = 2 ถึง 20 (ตามบทที่ 4 ของโครงงาน) -->
+        <section class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+                <div>
+                    <h2 class="text-base font-semibold text-white flex items-center gap-2">
+                        <i data-lucide="table" class="w-5 h-5 text-emerald-400"></i>
+                        <span>ตารางสรุปผลลัพธ์เปรียบเทียบ (n = 2 ถึง 20 เมื่อผู้เริ่มเล่น S = 1)</span>
+                    </h2>
+                    <p class="text-xs text-slate-400 mt-0.5">คลิกที่ช่องใด ๆ ในตารางเพื่อโหลดค่า n นั้นเข้าสู่สนามจำลองทันที (สังเกตจุดเปลี่ยนสำคัญที่ n = 15 ซึ่งได้คำตอบคือ 10)</p>
+                </div>
+                <span class="text-xs px-3 py-1 rounded-lg bg-amber-500/10 text-amber-300 border border-amber-500/30 self-start sm:self-auto">
+                    * กรณี n เป็นคู่ Z(n) = 0 (ไม่มีผู้รอดชีวิต)
+                </span>
+            </div>
+
+            <div class="overflow-x-auto pb-2">
+                <table class="w-full text-center border-collapse text-xs sm:text-sm font-mono">
+                    <thead>
+                        <tr id="ref-table-header" class="bg-slate-950 text-slate-400 border-b border-slate-800">
+                            <th class="py-2.5 px-3 text-left font-sans font-semibold sticky left-0 bg-slate-950 z-10">จำนวนคน (n)</th>
+                            <!-- หัวตาราง 2..20 -->
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr id="ref-table-row" class="divide-x divide-slate-800/60 border-b border-slate-800">
+                            <td class="py-3 px-3 text-left font-sans font-semibold text-emerald-400 sticky left-0 bg-slate-900 z-10">ผู้รอดชีวิต Z(n)</td>
+                            <!-- ค่า Z(2)..Z(20) -->
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- แถวที่ 4: ข้อมูลโครงงานและคณะผู้จัดทำ (Project Team Credits - แก้ไขได้) -->
+        <section class="bg-gradient-to-r from-slate-900 via-slate-900 to-slate-950 border border-slate-800 rounded-2xl p-6 shadow-xl">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5 border-b border-slate-800 pb-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-sky-500/15 border border-sky-500/30 flex items-center justify-center">
+                        <i data-lucide="users" class="w-5 h-5 text-sky-400"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-base sm:text-lg font-bold text-white">คณะผู้จัดทำโครงงาน (Project Team)</h2>
+                        <p class="text-xs text-slate-400">โครงงานคณิตศาสตร์ เรื่อง เกมเอาชีวิตรอดในวงล้อมซอมบี้กลายพันธุ์ (Z-Circle)</p>
+                    </div>
+                </div>
+                <button onclick="openEditTeamModal()" class="px-4 py-2 rounded-xl bg-sky-600/20 hover:bg-sky-600/30 text-sky-300 border border-sky-500/40 text-xs sm:text-sm font-medium transition flex items-center gap-2 self-start sm:self-auto">
+                    <i data-lucide="edit-3" class="w-4 h-4"></i>
+                    <span>แก้ไขชื่อคณะผู้จัดทำ</span>
+                </button>
+            </div>
+
+            <!-- การ์ดรายชื่อสมาชิก -->
+            <div id="team-cards-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- จะถูกสร้างโดย JavaScript -->
+            </div>
+
+            <!-- ข้อมูลอาจารย์ที่ปรึกษา / สถานศึกษา -->
+            <div class="mt-4 pt-4 border-t border-slate-800/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs text-slate-400">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="graduation-cap" class="w-4 h-4 text-emerald-400"></i>
+                    <span>ครูที่ปรึกษาโครงงาน: <strong id="display-advisor" class="text-slate-200 font-medium">คุณครูที่ปรึกษาโครงงานคณิตศาสตร์</strong></span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <i data-lucide="school" class="w-4 h-4 text-sky-400"></i>
+                    <span id="display-school" class="text-slate-300">กลุ่มสาระการเรียนรู้คณิตศาสตร์</span>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ส่วนท้ายเว็บไซต์ (Footer) -->
+    <footer class="border-t border-slate-800/80 bg-slate-950 py-5 mt-8">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
+            <div>
+                © 2026 <span class="text-slate-300 font-medium">Z-Circle Simulation System</span> — โครงงานคณิตศาสตร์เกมเอาชีวิตรอดในวงล้อมซอมบี้กลายพันธุ์
+            </div>
+            <div class="flex items-center gap-4">
+                <span>พัฒนาด้วยแนวคิดฟังก์ชันเวียนเกิด (Recurrence Relation) & เลขคณิตมอดุโล</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Modal 1: แก้ไขรายชื่อคณะผู้จัดทำ -->
+    <div id="edit-team-modal" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                    <i data-lucide="user-pen" class="w-5 h-5 text-sky-400"></i>
+                    <span>แก้ไขรายชื่อคณะผู้จัดทำโครงงาน</span>
+                </h3>
+                <button onclick="closeEditTeamModal()" class="text-slate-400 hover:text-white p-1 rounded-lg">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="space-y-3 max-h-[65vh] overflow-y-auto pr-1">
+                <div class="flex items-center justify-between">
+                    <label class="text-xs font-semibold text-slate-300">รายชื่อคณะผู้จัดทำ (ชื่อ-นามสกุล)</label>
+                    <button type="button" onclick="addMemberInputRow()" class="px-2.5 py-1 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 text-xs font-medium flex items-center gap-1 transition">
+                        <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                        <span>เพิ่มรายชื่อ</span>
+                    </button>
+                </div>
+
+                <div id="edit-members-list" class="space-y-2.5">
+                    <!-- ช่องกรอกรายชื่อจะถูกสร้างด้วย JavaScript -->
+                </div>
+
+                <div class="pt-3 border-t border-slate-800 space-y-3">
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">ครูที่ปรึกษาโครงงาน</label>
+                        <input type="text" id="edit-advisor" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:border-sky-500 outline-none" placeholder="ชื่อ-นามสกุล ครูที่ปรึกษา">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">โรงเรียน / หน่วยงาน</label>
+                        <input type="text" id="edit-school" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:border-sky-500 outline-none" placeholder="ชื่อโรงเรียนหรือสถาบันการศึกษา">
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
+                <button onclick="closeEditTeamModal()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm transition">ยกเลิก</button>
+                <button onclick="saveTeamData()" class="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-medium text-sm transition flex items-center gap-1.5">
+                    <i data-lucide="check" class="w-4 h-4"></i>
+                    <span>บันทึกข้อมูล</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // 1. ฟังก์ชันคณิตศาสตร์หลัก (Z-Circle Formulas)
+        // ==========================================
+
+        /**
+         * ฟังก์ชันเวียนเกิดสำหรับผู้เริ่มเล่นคนที่ 1: Z(n)
+         * กรณี n เป็นคู่: Z(n) = 0 (ไม่มีผู้รอดชีวิต)
+         * กรณี n เป็นคี่: Z(n) = (Z(n-2) + 3) mod n โดย Z(1) = Z(3) = 1
+         */
+        function computeZBase(n) {
+            if (n < 2 || n % 2 === 0) return 0;
+            if (n === 1 || n === 3) return 1;
+            let z = 1; // เริ่มจาก Z(3) = 1
+            for (let k = 5; k <= n; k += 2) {
+                let res = (z + 3) % k;
+                z = res === 0 ? k : res;
+            }
+            return z;
+        }
+
+        /**
+         * ฟังก์ชันทั่วไปสำหรับผู้เริ่มเล่นตำแหน่ง S ใด ๆ: Z(n, S)
+         * Z(n, S) = (Z(n) + S - 1) mod n
+         */
+        function computeZGeneral(n, s) {
+            if (n < 2 || n % 2 === 0) return 0;
+            const zBase = computeZBase(n);
+            let res = (zBase + s - 1) % n;
+            return res === 0 ? n : res;
+        }
+
+        // ==========================================
+        // 2. สถานะของระบบจำลอง (Simulation State)
+        // ==========================================
+        let state = {
+            n: 13,
+            s: 1,
+            alive: [],           // array ของหมายเลขผู้เล่นที่ยังมีชีวิตอยู่
+            deadShot: [],        // ผู้ที่ถูกยิงตาย (K)
+            deadInfected: [],    // ผู้ที่ติดเชื้อเสียชีวิตตาม (K+1)
+            round: 0,
+            currentShooter: null,
+            currentTarget: null,
+            currentCollateral: null,
+            winner: null,        // null = ยังไม่จบ, 0 = ตายหมด, >0 = ผู้ชนะ
+            isPlaying: false,
+            timerId: null,
+            logs: []
+        };
+
+        // ข้อมูลคณะผู้จัดทำโครงงาน (เฉพาะรายชื่อล้วน ๆ ไม่มีตำแหน่ง)
+        let teamData = {
+            members: [
+                "นายรวินท์ อุ่นนวนจิรสิน",
+                "นายสิปปภาส แซ่เลี่ยว"
+            ],
+            advisor: "นางสาวณัฐวรา เลิศอริยะพงษ์กุล",
+            school: "โรงเรียนวิทยาศาสตร์จุฬาภรณราชวิทยาลัย สตูล"
+        };
+
+        // ==========================================
+        // 3. การจัดการวงจรชีวิตการจำลอง (Simulation Engine)
+        // ==========================================
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const colors = {
+                info: 'bg-slate-800 border-sky-500/50 text-sky-200',
+                success: 'bg-emerald-950/90 border-emerald-500/50 text-emerald-200',
+                warning: 'bg-amber-950/90 border-amber-500/50 text-amber-200',
+                error: 'bg-rose-950/90 border-rose-500/50 text-rose-200'
+            };
+            toast.className = `px-4 py-2.5 rounded-xl border shadow-xl text-xs sm:text-sm font-medium backdrop-blur-md transition-all duration-300 ${colors[type] || colors.info}`;
+            toast.textContent = message;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(-8px)';
+                setTimeout(() => toast.remove(), 300);
+            }, 2600);
+        }
+
+        function setPreset(nVal, sVal) {
+            document.getElementById('input-n').value = nVal;
+            document.getElementById('input-s').value = sVal;
+            initSimulation(nVal, sVal);
+            showToast(`โหลดกรณีศึกษา n = ${nVal}, S = ${sVal} เรียบร้อย`, 'info');
+        }
+
+        function resetStartToOne() {
+            const nVal = parseInt(document.getElementById('input-n').value, 10) || 13;
+            document.getElementById('input-s').value = 1;
+            initSimulation(nVal, 1);
+        }
+
+        function initSimulation(nInput, sInput) {
+            pauseSimulation();
+
+            let n = parseInt(nInput, 10);
+            if (isNaN(n) || n < 2) n = 2;
+            if (n > 1000000) n = 1000000;
+
+            let s = parseInt(sInput, 10);
+            if (isNaN(s) || s < 1) s = 1;
+            if (s > n) s = n;
+
+            document.getElementById('input-n').value = n;
+            document.getElementById('input-s').value = s;
+            document.getElementById('input-s').max = n;
+
+            state.n = n;
+            state.s = s;
+            state.deadShot = [];
+            state.deadInfected = [];
+            state.round = 0;
+            state.currentShooter = s;
+            state.currentTarget = null;
+            state.currentCollateral = null;
+            state.winner = null;
+            state.logs = [];
+
+            if (n <= 60) {
+                state.alive = Array.from({ length: n }, (_, idx) => idx + 1);
+            } else {
+                state.alive = [];
+            }
+
+            updateSummaryBanner();
+            renderMathSteps();
+            renderLogs();
+            updateUIControls();
+            renderArena(null);
+        }
+
+        function updateSummaryBanner() {
+            const { n, s } = state;
+            const isEven = (n % 2 === 0);
+            const parityBadge = document.getElementById('parity-badge');
+            parityBadge.textContent = isEven ? 'จำนวนคู่' : 'จำนวนคี่';
+            parityBadge.className = isEven
+                ? 'px-2.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap bg-rose-500/15 text-rose-400 border border-rose-500/30'
+                : 'px-2.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap bg-emerald-500/15 text-emerald-400 border border-emerald-500/30';
+
+            const zBase = computeZBase(n);
+            const ans = computeZGeneral(n, s);
+            const totalRounds = Math.floor(n / 2);
+
+            document.getElementById('formula-tag').textContent = `Z(${n.toLocaleString()}, ${s.toLocaleString()})`;
+            document.getElementById('stat-zn').textContent = zBase === 0 ? '0 (ไม่มี)' : zBase.toLocaleString();
+            document.getElementById('stat-rounds').textContent = `${totalRounds.toLocaleString()} รอบ`;
+
+            const mainValEl = document.getElementById('result-main-value');
+            const descEl = document.getElementById('result-desc');
+            const iconWrap = document.getElementById('result-icon-wrapper');
+
+            if (ans === 0) {
+                mainValEl.textContent = '0 (ไม่มีผู้รอดชีวิต)';
+                mainValEl.className = 'text-2xl sm:text-3xl font-bold font-mono text-rose-400 tracking-tight';
+                descEl.textContent = 'เสียชีวิตทั้งหมดตามสมมติฐาน (n เป็นจำนวนคู่)';
+                descEl.className = 'text-xs text-rose-400 mt-0.5';
+                iconWrap.className = 'w-14 h-14 rounded-2xl bg-rose-500/15 border border-rose-500/40 flex items-center justify-center shrink-0 text-rose-400';
+                iconWrap.innerHTML = '<i data-lucide="skull" class="w-8 h-8"></i>';
+            } else {
+                mainValEl.textContent = `หมายเลข ${ans.toLocaleString()}`;
+                mainValEl.className = 'text-2xl sm:text-3xl font-bold font-mono text-amber-400 tracking-tight';
+                descEl.textContent = 'รอดชีวิตเพียง 1 คนตามสมมติฐาน (n เป็นจำนวนคี่)';
+                descEl.className = 'text-xs text-emerald-400 mt-0.5';
+                iconWrap.className = 'w-14 h-14 rounded-2xl bg-amber-500/15 border border-amber-500/40 flex items-center justify-center shrink-0 text-amber-400';
+                iconWrap.innerHTML = '<i data-lucide="crown" class="w-8 h-8"></i>';
+            }
+            lucide.createIcons();
+        }
+
+        function stepForward() {
+            if (state.n > 60) {
+                showToast('กรณี n > 60 ระบบคำนวณคำตอบด้วยสูตรทันทีแล้ว', 'info');
+                return;
+            }
+            if (state.winner !== null) {
+                showToast('การจำลองสิ้นสุดแล้ว กดรีเซ็ตเพื่อเริ่มใหม่', 'warning');
+                return;
+            }
+
+            const aliveCount = state.alive.length;
+            if (aliveCount <= 1) {
+                state.winner = aliveCount === 1 ? state.alive[0] : 0;
+                updateUIControls();
+                renderArena(null);
+                return;
+            }
+
+            state.round += 1;
+            const shooterIdx = state.alive.indexOf(state.currentShooter);
+            const shooter = state.alive[shooterIdx];
+            const targetIdx = (shooterIdx + 1) % aliveCount;
+            const target = state.alive[targetIdx];
+            const collateralIdx = (shooterIdx + 2) % aliveCount;
+            const collateral = state.alive[collateralIdx];
+
+            // บันทึกผู้ถูกยิง (K) และผู้ติดเชื้อตายตาม (K+1)
+            state.deadShot.push(target);
+            state.deadInfected.push(collateral);
+
+            // คัดออก 2 คนออกจากวงกลมผู้รอดชีวิต
+            const toRemove = new Set([target, collateral]);
+            const nextAlive = state.alive.filter(id => !toRemove.has(id));
+
+            // หาผู้ยิงคนถัดไปตามเข็มนาฬิกา
+            let nextShooter = null;
+            if (nextAlive.length >= 2) {
+                // หาคนแรกใน nextAlive ที่อยู่ถัดจาก collateral ตามเข็มนาฬิกา
+                for (let step = 1; step <= state.n; step++) {
+                    const cand = ((collateral - 1 + step) % state.n) + 1;
+                    if (nextAlive.includes(cand)) {
+                        nextShooter = cand;
+                        break;
+                    }
+                }
+            }
+
+            state.alive = nextAlive;
+            state.currentShooter = nextShooter;
+
+            const actionRecord = {
+                round: state.round,
+                shooter,
+                target,
+                collateral,
+                remaining: [...nextAlive]
+            };
+            state.logs.push(actionRecord);
+
+            // ตรวจสอบเงื่อนไขจบเกม
+            if (nextAlive.length === 0) {
+                state.winner = 0;
+                pauseSimulation();
+            } else if (nextAlive.length === 1) {
+                state.winner = nextAlive[0];
+                pauseSimulation();
+            }
+
+            renderLogs();
+            updateUIControls(actionRecord);
+            renderArena(actionRecord);
+        }
+
+        function togglePlayPause() {
+            if (state.n > 60) {
+                showToast('กรณี n > 60 แสดงผลลัพธ์จากสูตรโดยตรง', 'info');
+                return;
+            }
+            if (state.winner !== null) {
+                resetSimulation();
+            }
+            if (state.isPlaying) {
+                pauseSimulation();
+            } else {
+                startSimulation();
+            }
+        }
+
+        function startSimulation() {
+            if (state.winner !== null) return;
+            state.isPlaying = true;
+            updatePlayButtonUI();
+            const speed = parseInt(document.getElementById('sim-speed').value, 10) || 800;
+            stepForward();
+            if (state.winner === null) {
+                state.timerId = setInterval(() => {
+                    if (state.winner !== null) {
+                        pauseSimulation();
+                    } else {
+                        stepForward();
+                    }
+                }, speed);
+            }
+        }
+
+        function pauseSimulation() {
+            state.isPlaying = false;
+            if (state.timerId) {
+                clearInterval(state.timerId);
+                state.timerId = null;
+            }
+            updatePlayButtonUI();
+        }
+
+        function resetSimulation() {
+            initSimulation(state.n, state.s);
+        }
+
+        function updatePlayButtonUI() {
+            const btn = document.getElementById('btn-play-pause');
+            const text = document.getElementById('text-play-pause');
+            if (state.isPlaying) {
+                btn.className = 'px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-semibold text-xs sm:text-sm shadow-lg shadow-rose-950/50 transition flex items-center gap-1.5 active:scale-95';
+                btn.innerHTML = `<i data-lucide="pause" class="w-4 h-4"></i><span>หยุดชั่วคราว</span>`;
+            } else {
+                btn.className = 'px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs sm:text-sm shadow-lg shadow-emerald-950/50 transition flex items-center gap-1.5 active:scale-95';
+                btn.innerHTML = `<i data-lucide="play" class="w-4 h-4"></i><span>เล่นอัตโนมัติ</span>`;
+            }
+            lucide.createIcons();
+        }
+
+        function updateUIControls(lastAction = null) {
+            document.getElementById('round-indicator').textContent = state.round === 0
+                ? 'เริ่มต้น (รอบที่ 0)'
+                : `รอบที่ ${state.round}`;
+
+            const aliveCount = state.n <= 60 ? state.alive.length : (state.n % 2 === 0 ? 0 : 1);
+            document.getElementById('alive-counter').textContent = `รอดชีวิต: ${aliveCount}/${state.n} คน`;
+
+            const statusEl = document.getElementById('stat-status');
+            const bannerText = document.getElementById('current-action-text');
+
+            if (state.winner === 0) {
+                statusEl.textContent = 'จบเกม (ตายหมด)';
+                statusEl.className = 'font-medium text-xs text-rose-400 mt-1';
+                bannerText.innerHTML = `<span class="text-rose-400 font-bold">จบเกม!</span> รอบที่ ${state.round}: หมายเลข <span class="text-sky-300 font-bold">${lastAction.shooter}</span> ยิง <span class="text-red-400 font-bold">${lastAction.target}</span> และระเบิดพิษทำให้ตนเอง (<span class="text-purple-400 font-bold">${lastAction.collateral}</span>) เสียชีวิตตาม — <span class="underline">ไม่มีผู้รอดชีวิต</span>`;
+            } else if (state.winner !== null) {
+                statusEl.textContent = `จบเกม (ชนะ: #${state.winner})`;
+                statusEl.className = 'font-medium text-xs text-amber-400 mt-1';
+                if (lastAction) {
+                    bannerText.innerHTML = `<span class="text-amber-400 font-bold">👑 จบเกม!</span> รอบที่ ${state.round}: หมายเลข <span class="text-sky-300 font-bold">${lastAction.shooter}</span> ยิง <span class="text-red-400 font-bold">${lastAction.target}</span> (เชื้อพิษทำ <span class="text-purple-400 font-bold">${lastAction.collateral}</span> ตายตาม) — ผู้รอดชีวิตคนสุดท้ายคือ <span class="text-amber-300 font-bold text-base">หมายเลข ${state.winner}</span>`;
+                } else {
+                    bannerText.innerHTML = `<span class="text-amber-400 font-bold">👑 ผู้รอดชีวิตคนสุดท้ายคือ หมายเลข ${state.winner}</span>`;
+                }
+            } else if (lastAction) {
+                statusEl.textContent = `กำลังจำลอง (รอบ ${state.round})`;
+                statusEl.className = 'font-medium text-xs text-sky-400 mt-1';
+                bannerText.innerHTML = `รอบที่ ${lastAction.round}: <span class="text-sky-300 font-bold">🎯 #${lastAction.shooter}</span> ยิงสกัด <span class="text-red-400 font-bold">❌ #${lastAction.target}</span> ➔ ระเบิดพิษทำให้ <span class="text-purple-400 font-bold">☣️ #${lastAction.collateral}</span> เสียชีวิตตาม (ตาถัดไป: #${state.currentShooter})`;
+            } else {
+                statusEl.textContent = 'พร้อมจำลอง';
+                statusEl.className = 'font-medium text-xs text-emerald-400 mt-1';
+                bannerText.innerHTML = `เริ่มต้นมีผู้รอดชีวิต <span class="text-white font-bold">${state.n}</span> คน — ผู้เริ่มยิงคนแรกคือ <span class="text-sky-300 font-bold">🎯 หมายเลข ${state.s}</span> กดปุ่ม <strong>"ทีละขั้น (Step)"</strong> เพื่อเริ่ม`;
+            }
+        }
+
+        function renderLogs() {
+            const list = document.getElementById('simulation-log-list');
+            if (state.logs.length === 0) {
+                list.innerHTML = `
+                    <div class="text-center py-8 px-4 text-xs text-slate-500 border border-dashed border-slate-800 rounded-xl">
+                        ยังไม่มีบันทึกการคัดออก กดปุ่ม <span class="text-amber-400 font-semibold">"ทีละขั้น (Step)"</span> หรือ <span class="text-emerald-400 font-semibold">"เล่นอัตโนมัติ"</span> เพื่อเริ่มจำลอง
+                    </div>
+                `;
+                return;
+            }
+
+            list.innerHTML = state.logs.map(item => `
+                <div class="p-3 rounded-xl bg-slate-950/90 border border-slate-800/90 text-xs space-y-1">
+                    <div class="flex items-center justify-between">
+                        <span class="font-mono font-bold text-emerald-400">Step ${item.round}</span>
+                        <span class="text-[11px] text-slate-400">เหลือ ${item.remaining.length} คน</span>
+                    </div>
+                    <div class="text-slate-200">
+                        <span class="text-sky-400 font-semibold">🎯 คนที่ ${item.shooter}</span> กำจัด 
+                        <span class="text-red-400 font-semibold">❌ คนที่ ${item.target}</span> 
+                        <span class="text-slate-400">→</span> 
+                        <span class="text-purple-400 font-semibold">☣️ คนที่ ${item.collateral}</span> เสียชีวิตตาม
+                    </div>
+                    <div class="text-[11px] text-slate-500 font-mono">
+                        ผู้รอดชีวิต: [${item.remaining.length > 0 ? item.remaining.join(', ') : 'ไม่มีผู้รอดชีวิต'}]
+                    </div>
+                </div>
+            `).join('');
+            list.scrollTop = list.scrollHeight;
+        }
+
+        function renderMathSteps() {
+            const container = document.getElementById('math-recurrence-steps');
+            const { n, s } = state;
+
+            if (n % 2 === 0) {
+                container.innerHTML = `
+                    <div class="p-2.5 rounded-lg bg-rose-950/30 border border-rose-500/30 text-rose-300">
+                        เนื่องจาก n = ${n.toLocaleString()} เป็น<strong>จำนวนคู่</strong><br>
+                        ตามทฤษฎีบท Z(n) = 0 เสมอ (ทุกตาเดินลดลง 2 คน จนเหลือ 2 คนสุดท้ายและตายพร้อมกัน)<br>
+                        ดังนั้น <strong>Z(${n.toLocaleString()}, ${s.toLocaleString()}) = 0 (ไม่มีผู้รอดชีวิต)</strong>
+                    </div>
+                `;
+                return;
+            }
+
+            if (n > 200) {
+                const zBase = computeZBase(n);
+                const zGen = computeZGeneral(n, s);
+                container.innerHTML = `
+                    <div class="space-y-1.5 text-slate-300">
+                        <div>• กรณีฐาน: Z(1) = Z(3) = 1</div>
+                        <div>• คำนวณวนซ้ำตามสูตร Z(k) = (Z(k-2) + 3) mod k จนถึง k = ${n.toLocaleString()}</div>
+                        <div class="text-emerald-400 font-bold">• ได้ค่า Z(${n.toLocaleString()}) = ${zBase.toLocaleString()}</div>
+                        ${s > 1 ? `<div class="text-amber-400 font-bold">• เลื่อนตำแหน่งผู้เริ่มยิง S = ${s.toLocaleString()}: Z(${n.toLocaleString()}, ${s.toLocaleString()}) = (${zBase.toLocaleString()} + ${s.toLocaleString()} - 1) mod ${n.toLocaleString()} = ${zGen.toLocaleString()}</div>` : ''}
+                    </div>
+                `;
+                return;
+            }
+
+            let lines = [];
+            lines.push(`<div class="text-slate-400">ค่าเริ่มต้น: Z(1) = 1, Z(3) = 1</div>`);
+            let z = 1;
+            for (let k = 5; k <= n; k += 2) {
+                const raw = z + 3;
+                const modVal = raw % k;
+                const nextZ = modVal === 0 ? k : modVal;
+                const note = modVal === 0 ? ` (เศษ 0 แทนด้วย ${k})` : '';
+                const highlight = (k === n) ? 'text-emerald-400 font-bold bg-emerald-950/40 px-2 py-1 rounded' : '';
+                lines.push(`<div class="${highlight}">Z(${k}) = (Z(${k - 2}) + 3) mod ${k} = (${z} + 3) mod ${k} = ${nextZ}${note}</div>`);
+                z = nextZ;
+            }
+
+            if (s > 1) {
+                const rawS = z + s - 1;
+                const modS = rawS % n;
+                const finalZ = modS === 0 ? n : modS;
+                lines.push(`
+                    <div class="mt-2 pt-2 border-t border-slate-800 text-amber-400 font-bold bg-amber-950/30 px-2 py-1.5 rounded">
+                        ขยายผลผู้เริ่มยิง S = ${s}:<br>
+                        Z(${n}, ${s}) = (Z(${n}) + ${s} - 1) mod ${n} = (${z} + ${s - 1}) mod ${n} = ${finalZ}
+                    </div>
+                `);
+            }
+
+            container.innerHTML = lines.join('');
+        }
+
+        function switchRightTab(tabName) {
+            const btnLog = document.getElementById('tab-btn-log');
+            const btnMath = document.getElementById('tab-btn-math');
+            const contentLog = document.getElementById('tab-content-log');
+            const contentMath = document.getElementById('tab-content-math');
+
+            if (tabName === 'log') {
+                btnLog.className = 'px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold bg-emerald-600 text-white transition flex items-center gap-1.5';
+                btnMath.className = 'px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition flex items-center gap-1.5';
+                contentLog.classList.remove('hidden');
+                contentMath.classList.add('hidden');
+            } else {
+                btnMath.className = 'px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold bg-emerald-600 text-white transition flex items-center gap-1.5';
+                btnLog.className = 'px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition flex items-center gap-1.5';
+                contentMath.classList.remove('hidden');
+                contentLog.classList.add('hidden');
+            }
+        }
+
+        function buildReferenceTable() {
+            const headerRow = document.getElementById('ref-table-header');
+            const dataRow = document.getElementById('ref-table-row');
+
+            for (let n = 2; n <= 20; n++) {
+                const th = document.createElement('th');
+                th.className = 'py-2.5 px-3 font-semibold text-slate-300';
+                th.textContent = n;
+                headerRow.appendChild(th);
+
+                const z = computeZBase(n);
+                const td = document.createElement('td');
+                const isN15 = (n === 15);
+                td.className = `py-3 px-3 cursor-pointer transition hover:bg-emerald-500/20 ${
+                    z === 0 ? 'text-rose-400/80' : (isN15 ? 'text-amber-300 font-bold bg-amber-500/15' : 'text-emerald-300 font-bold')
+                }`;
+                td.textContent = z === 0 ? '0' : z;
+                td.title = `คลิกเพื่อจำลองกรณี n = ${n}, S = 1`;
+                td.onclick = () => {
+                    setPreset(n, 1);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                };
+                dataRow.appendChild(td);
+            }
+        }
+
+        // ==========================================
+        // 4. การวาดแบบจำลองวงกลม Top-Down View
+        // ==========================================
+
+        /**
+         * วาดภาพจำลองวงกลม Top-Down View สไตล์กระดาษคราฟท์ (เหมือนภาพตัวอย่าง)
+         * พร้อมตัวละครมุมมองด้านบน ตัวเลขลายมือเขียนด้านใน เส้นเชื่อมสีฟ้าอ่อน และป้ายกำกับสถานะชัดเจน
+         */
+        function renderArena(lastAction = null) {
+            const svg = document.getElementById('circle-svg');
+            const overlay = document.getElementById('large-n-overlay');
+            const { n } = state;
+
+            if (n > 60) {
+                svg.innerHTML = '';
+                overlay.classList.remove('hidden');
+                document.getElementById('large-n-val').textContent = `n = ${n.toLocaleString()}`;
+                const ans = computeZGeneral(n, state.s);
+                document.getElementById('large-n-ans').textContent = ans === 0 ? '0 (ไม่มีผู้รอดชีวิต)' : `หมายเลข ${ans.toLocaleString()}`;
+                return;
+            } else {
+                overlay.classList.add('hidden');
+            }
+
+            const cx = 280;
+            const cy = 272;
+            const radius = n <= 10 ? 172 : (n <= 18 ? 186 : (n <= 30 ? 202 : 215));
+            const innerNumRadius = radius - (n <= 15 ? 46 : (n <= 30 ? 38 : 30));
+            const charScale = n <= 10 ? 1.05 : (n <= 16 ? 0.88 : (n <= 26 ? 0.68 : (n <= 40 ? 0.5 : 0.38)));
+            const numFontSize = n <= 10 ? 26 : (n <= 16 ? 22 : (n <= 26 ? 16 : (n <= 40 ? 12 : 9)));
+
+            const coords = {};
+            for (let i = 1; i <= n; i++) {
+                const angle = -Math.PI / 2 + ((i - 1) * 2 * Math.PI) / n;
+                const deg = (angle * 180) / Math.PI;
+                coords[i] = {
+                    x: cx + radius * Math.cos(angle),
+                    y: cy + radius * Math.sin(angle),
+                    numX: cx + innerNumRadius * Math.cos(angle),
+                    numY: cy + innerNumRadius * Math.sin(angle),
+                    angle: angle,
+                    deg: deg
+                };
+            }
+
+            let svgContent = `
+                <defs>
+                    <filter id="kraft-noise" x="0%" y="0%" width="100%" height="100%">
+                        <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" stitchTiles="stitch" result="noise"/>
+                        <feColorMatrix type="matrix" values="1 0 0 0 0  0 0.85 0 0 0  0 0 0.7 0 0  0 0 0 0.14 0" in="noise" result="coloredNoise"/>
+                        <feComposite operator="in" in2="SourceGraphic"/>
+                    </filter>
+                    <marker id="arrow-shot" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                        <path d="M0,1 L7,4 L0,7 Z" fill="#dc2626" />
+                    </marker>
+                    <marker id="arrow-bio" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                        <path d="M0,1 L7,4 L0,7 Z" fill="#7e22ce" />
+                    </marker>
+                </defs>
+
+                <rect x="0" y="0" width="560" height="560" fill="#c7a07a" />
+                <rect x="0" y="0" width="560" height="560" fill="#8c6239" filter="url(#kraft-noise)" opacity="0.7" />
+            `;
+
+            if (state.alive.length >= 2) {
+                const pointsStr = state.alive.map(id => `${coords[id].x.toFixed(1)},${coords[id].y.toFixed(1)}`).join(' ');
+                svgContent += `
+                    <polygon points="${pointsStr}" fill="none" stroke="#bae6fd" stroke-width="${n <= 20 ? 4.5 : 2.5}" 
+                             stroke-linejoin="round" opacity="0.88" />
+                `;
+            }
+
+            svgContent += `
+                <text x="22" y="534" fill="#18181b" font-family="'Patrick Hand', cursive" font-size="24" font-weight="bold" letter-spacing="1">
+                    ${n} SURVIVORS (Z-CIRCLE)
+                </text>
+            `;
+
+            if (state.winner === 0) {
+                svgContent += `
+                    <g>
+                        <rect x="${cx - 105}" y="${cy - 34}" width="210" height="68" rx="14" fill="#18181b" opacity="0.85" />
+                        <text x="${cx}" y="${cy - 6}" text-anchor="middle" fill="#fda4af" font-size="17" font-weight="bold">ไม่มีผู้รอดชีวิต</text>
+                        <text x="${cx}" y="${cy + 18}" text-anchor="middle" fill="#e2e8f0" font-size="13" font-family="JetBrains Mono">Z(${n}, ${state.s}) = 0</text>
+                    </g>
+                `;
+            } else if (state.winner !== null) {
+                svgContent += `
+                    <g>
+                        <rect x="${cx - 110}" y="${cy - 40}" width="220" height="80" rx="16" fill="#18181b" opacity="0.88" stroke="#fbbf24" stroke-width="2" />
+                        <text x="${cx}" y="${cy - 12}" text-anchor="middle" fill="#fde047" font-size="14" font-weight="bold">👑 ผู้รอดชีวิตคนสุดท้าย</text>
+                        <text x="${cx}" y="${cy + 22}" text-anchor="middle" fill="#ffffff" font-size="28" font-weight="bold" font-family="'Patrick Hand', cursive">หมายเลข ${state.winner}</text>
+                    </g>
+                `;
+            }
+
+            function drawTopDownCharacter(id, x, y, deg, statusType) {
+                const rotAngle = deg + 90;
+
+                if (statusType === 'dead-prev' || statusType === 'shot-now' || statusType === 'bio-now') {
+                    const isShotNow = (statusType === 'shot-now');
+                    const isBioNow = (statusType === 'bio-now');
+                    const opacity = (isShotNow || isBioNow) ? 0.95 : 0.42;
+                    const bodyColor = isBioNow ? '#a855f7' : (isShotNow ? '#ef4444' : '#6b7280');
+                    const badgeEmoji = isBioNow ? '☣️' : (isShotNow ? '❌' : (state.deadInfected.includes(id) ? '☣️' : '❌'));
+
+                    return `
+                        <g transform="translate(${x.toFixed(1)}, ${y.toFixed(1)})">
+                            <g transform="rotate(${rotAngle.toFixed(1)}) scale(${charScale})" opacity="${opacity}">
+                                <ellipse cx="0" cy="4" rx="22" ry="13" fill="rgba(41, 25, 12, 0.28)" />
+                                <rect x="-18" y="-9" width="32" height="18" rx="9" fill="${bodyColor}" stroke="#3f3f46" stroke-width="1.5" />
+                                <rect x="-8" y="-17" width="8" height="12" rx="4" fill="${bodyColor}" />
+                                <rect x="4" y="6" width="8" height="12" rx="4" fill="${bodyColor}" />
+                                <circle cx="15" cy="0" r="10" fill="#f3d2b3" stroke="#5c4033" stroke-width="1.2" />
+                                <path d="M 11 -9 A 10 10 0 0 1 24 3 Q 17 2 11 -9 Z" fill="#4a3219" />
+                                <line x1="-22" y1="14" x2="10" y2="18" stroke="#bae6fd" stroke-width="3.5" stroke-linecap="round" />
+                                <line x1="-14" y1="10" x2="-12" y2="21" stroke="#7dd3fc" stroke-width="2.5" stroke-linecap="round" />
+                            </g>
+                            <text x="0" y="6" text-anchor="middle" font-size="${n <= 18 ? 20 : 14}">${badgeEmoji}</text>
+                        </g>
+                    `;
+                }
+
+                const isShooter = (statusType === 'shooter-next' || statusType === 'shooter-now');
+                const isWinner = (statusType === 'winner');
+                const tunicColor = isWinner ? '#eab308' : (isShooter ? '#65a30d' : '#7c9a56');
+                const sleeveColor = isWinner ? '#ca8a04' : (isShooter ? '#4d7c0f' : '#6d8a49');
+
+                const auraRing = isWinner
+                    ? `<circle cx="0" cy="0" r="28" fill="none" stroke="#fde047" stroke-width="3" stroke-dasharray="5 3" />`
+                    : (isShooter
+                        ? `<circle cx="0" cy="0" r="27" fill="rgba(56, 189, 248, 0.22)" stroke="#0284c7" stroke-width="2.5" />`
+                        : '');
+
+                const armsAndWeapon = isShooter
+                    ? `
+                        <path d="M 11 4 L 24 14" stroke="${sleeveColor}" stroke-width="7.5" stroke-linecap="round" />
+                        <path d="M -11 4 L -13 15" stroke="${sleeveColor}" stroke-width="7" stroke-linecap="round" />
+                        <line x1="8" y1="15" x2="36" y2="20" stroke="#e0f2fe" stroke-width="4" stroke-linecap="round" />
+                        <line x1="14" y1="10" x2="12" y2="21" stroke="#38bdf8" stroke-width="3" stroke-linecap="round" />
+                      `
+                    : `
+                        <path d="M -12 3 L -10 15" stroke="${sleeveColor}" stroke-width="7" stroke-linecap="round" />
+                        <path d="M 12 3 L 10 15" stroke="${sleeveColor}" stroke-width="7" stroke-linecap="round" />
+                        <line x1="-16" y1="15" x2="16" y2="15" stroke="#bae6fd" stroke-width="3.8" stroke-linecap="round" />
+                        <line x1="0" y1="10" x2="0" y2="21" stroke="#7dd3fc" stroke-width="2.8" stroke-linecap="round" />
+                      `;
+
+                return `
+                    <g transform="translate(${x.toFixed(1)}, ${y.toFixed(1)})">
+                        <g transform="rotate(${rotAngle.toFixed(1)}) scale(${charScale})">
+                            ${auraRing}
+                            <ellipse cx="0" cy="3" rx="18" ry="13" fill="rgba(41, 25, 12, 0.25)" />
+                            <ellipse cx="-6" cy="15" rx="4" ry="5.5" fill="#1c1917" />
+                            <ellipse cx="6" cy="15" rx="4" ry="5.5" fill="#1c1917" />
+                            <rect x="-16" y="-8" width="32" height="19" rx="9.5" fill="${tunicColor}" stroke="#4b5e32" stroke-width="1.2" />
+                            ${armsAndWeapon}
+                            <circle cx="0" cy="-2" r="11.5" fill="#f5d5b8" stroke="#5c4033" stroke-width="1" />
+                            <path d="M -11.5 -2 A 11.5 11.5 0 1 1 11.5 -2 C 7 -6, -7 -6, -11.5 -2 Z" fill="#4e3318" />
+                            <circle cx="-4" cy="4.5" r="1.3" fill="#1c1917" />
+                            <circle cx="4" cy="4.5" r="1.3" fill="#1c1917" />
+                        </g>
+                        ${isWinner ? `<text x="0" y="${-24 * charScale}" text-anchor="middle" font-size="18">👑</text>` : ''}
+                        ${isShooter ? `<text x="0" y="${-24 * charScale}" text-anchor="middle" font-size="15">🎯</text>` : ''}
+                    </g>
+                `;
+            }
+            function createEdgeLabel(x1, y1, x2, y2, text, bgColor, borderColor, radialOffset = 0) {
+                const mx = (x1 + x2) / 2;
+                const my = (y1 + y2) / 2;
+                // ดันป้ายข้อความเข้าหาจุดศูนย์กลางวงกลมตามแนวรัศมี เพื่อไม่ให้ทับเส้นลูกศรและตัวละคร
+                const vx = cx - mx;
+                const vy = cy - my;
+                const vDist = Math.hypot(vx, vy) || 1;
+                const lx = mx + (vx / vDist) * radialOffset;
+                const ly = my + (vy / vDist) * radialOffset;
+
+                const boxW = text.length * 6.0 + 14;
+                const boxH = 18;
+                return `
+                    <g>
+                        <rect x="${(lx - boxW / 2).toFixed(1)}" y="${(ly - boxH / 2).toFixed(1)}" width="${boxW.toFixed(1)}" height="${boxH}" rx="6" 
+                              fill="${bgColor}" stroke="${borderColor}" stroke-width="1.2" opacity="0.96" />
+                        <text x="${lx.toFixed(1)}" y="${(ly + 3.2).toFixed(1)}" text-anchor="middle" fill="#ffffff" font-size="9.5" font-weight="bold">${text}</text>
+                    </g>
+                `;
+            }
+
+            let badgesLayer = '';
+            const createNodeBadge = (x, y, angle, labelText, bgColor, borderColor, extraRadial = 0) => {
+                // วางป้ายสถานะเยื้องออกไปด้านนอกวงกลม และปรับระยะตามทิศทาง (ซ้าย/ขวา vs บน/ล่าง) เพื่อไม่ให้ล้นขอบหรือซ้อนกัน
+                const cosA = Math.cos(angle);
+                const sinA = Math.sin(angle);
+                const baseOut = 30 * charScale + 18 + extraRadial;
+                const bx = x + (baseOut + Math.abs(cosA) * 14) * cosA;
+                const by = y + (baseOut + Math.abs(sinA) * 4) * sinA;
+                const w = labelText.length * 5.8 + 12;
+                const h = 17;
+
+                // ป้องกันป้ายหลุดออกนอกกรอบ SVG (560x560)
+                const clampedX = Math.max(w / 2 + 6, Math.min(560 - w / 2 - 6, bx));
+                const clampedY = Math.max(h / 2 + 6, Math.min(545 - h / 2, by));
+
+                return `
+                    <g>
+                        <rect x="${(clampedX - w / 2).toFixed(1)}" y="${(clampedY - h / 2).toFixed(1)}" width="${w.toFixed(1)}" height="${h}" rx="5"
+                              fill="${bgColor}" stroke="${borderColor}" stroke-width="1.1" opacity="0.96" />
+                        <text x="${clampedX.toFixed(1)}" y="${(clampedY + 3.2).toFixed(1)}" text-anchor="middle" fill="#ffffff" font-size="9" font-weight="bold">${labelText}</text>
+                    </g>
+                `;
+            };
+
+            for (let i = 1; i <= n; i++) {
+                const { x, y, numX, numY, angle, deg } = coords[i];
+                const isAlive = state.alive.includes(i);
+                const isWinner = (state.winner === i);
+                // แสดงผู้ยิงรอบถัดไปเฉพาะตอนเริ่มต้น (round === 0) ยังไม่แสดงในระหว่างรอบที่เพิ่งยิงเสร็จ
+                const isInitialShooter = (state.round === 0 && state.winner === null && state.currentShooter === i);
+                const isRoundShooter = (lastAction && lastAction.shooter === i);
+                const isLastTarget = (lastAction && lastAction.target === i);
+                const isLastCollateral = (lastAction && lastAction.collateral === i);
+
+                // วาดตัวเลขตำแหน่งด้านในวงกลม (สไตล์ลายมือเขียนเหมือนภาพตัวอย่าง)
+                const numRot = deg + 90;
+                const numColor = isWinner ? '#fef08a' : (!isAlive ? 'rgba(24, 24, 27, 0.35)' : '#18181b');
+                svgContent += `
+                    <text x="${numX.toFixed(1)}" y="${numY.toFixed(1)}" 
+                          transform="rotate(${numRot.toFixed(1)}, ${numX.toFixed(1)}, ${numY.toFixed(1)})"
+                          text-anchor="middle" dominant-baseline="central"
+                          fill="${numColor}" font-family="'Patrick Hand', cursive" 
+                          font-size="${numFontSize}" font-weight="bold">
+                        ${i}
+                    </text>
+                `;
+
+                let statusType = 'alive';
+                if (isWinner) {
+                    statusType = 'winner';
+                } else if (isLastTarget) {
+                    statusType = 'shot-now';
+                    // ขยับป้ายของคนถูกยิง (K) ออกไปไกลขึ้นเล็กน้อย เพื่อไม่ให้ชนกับป้ายของผู้ยิง (S) และคนตายตาม (K+1)
+                    badgesLayer += createNodeBadge(x, y, angle, '❌ ถูกยิง (K)', '#991b1b', '#fca5a5', 16);
+                } else if (isLastCollateral) {
+                    statusType = 'bio-now';
+                    badgesLayer += createNodeBadge(x, y, angle, '☣️ ตายตาม (K+1)', '#581c87', '#d8b4fe', 0);
+                } else if (!isAlive) {
+                    statusType = 'dead-prev';
+                } else if (isInitialShooter) {
+                    statusType = 'shooter-next';
+                    badgesLayer += createNodeBadge(x, y, angle, '🎯 ผู้เริ่มยิง (S)', '#075985', '#7dd3fc', 0);
+                } else if (isRoundShooter) {
+                    statusType = 'shooter-now';
+                    badgesLayer += createNodeBadge(x, y, angle, '🎯 ผู้ยิง (S)', '#075985', '#38bdf8', 0);
+                }
+
+                svgContent += drawTopDownCharacter(i, x, y, deg, statusType);
+            }
+
+            if (lastAction) {
+                const pShooter = coords[lastAction.shooter];
+                const pTarget = coords[lastAction.target];
+                const pCollat = coords[lastAction.collateral];
+                const pad = 18 * charScale;
+
+                const shortenLine = (p1, p2, rPad) => {
+                    const dx = p2.x - p1.x;
+                    const dy = p2.y - p1.y;
+                    const dist = Math.hypot(dx, dy) || 1;
+                    return {
+                        x1: p1.x + (dx / dist) * rPad,
+                        y1: p1.y + (dy / dist) * rPad,
+                        x2: p2.x - (dx / dist) * (rPad + 4),
+                        y2: p2.y - (dy / dist) * (rPad + 4)
+                    };
+                };
+
+                const line1 = shortenLine(pShooter, pTarget, pad);
+                const line2 = shortenLine(pTarget, pCollat, pad);
+
+                svgContent += `
+                    <line x1="${line1.x1}" y1="${line1.y1}" x2="${line1.x2}" y2="${line1.y2}" 
+                          stroke="#dc2626" stroke-width="3.2" marker-end="url(#arrow-shot)" />
+                    <line x1="${line2.x1}" y1="${line2.y1}" x2="${line2.x2}" y2="${line2.y2}" 
+                          stroke="#7e22ce" stroke-width="3.2" stroke-dasharray="6 3" marker-end="url(#arrow-bio)" />
+                `;
+
+                // วางป้ายข้อความเส้นที่ 1 ด้านในวงกลมเยื้องเข้าศูนย์กลาง และเส้นที่ 2 ลึกเข้าด้านในอีกชั้น เพื่อไม่ให้ซ้อนทับกันเองหรือทับตัวเลข
+                svgContent += createEdgeLabel(line1.x1, line1.y1, line1.x2, line1.y2, '1. ยิงสกัด', '#991b1b', '#fca5a5', 42);
+                svgContent += createEdgeLabel(line2.x1, line2.y1, line2.x2, line2.y2, '2. ระเบิดพิษตายตาม', '#581c87', '#e9d5ff', 68);
+            }
+
+            svgContent += badgesLayer;
+            svg.innerHTML = svgContent;
+        }
+
+        // ==========================================
+        // 5. การจัดการคณะผู้จัดทำ (LocalStorage + UI)
+        // ==========================================
+
+        function loadTeamData() {
+            try {
+                const saved = localStorage.getItem('z_circle_team_data_pcshs');
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    if (Array.isArray(parsed.members) && parsed.members.length > 0) {
+                        teamData.members = parsed.members.map(m => typeof m === 'string' ? m : (m.name || ''));
+                    }
+                    if (parsed.advisor) teamData.advisor = parsed.advisor;
+                    if (parsed.school) teamData.school = parsed.school;
+                }
+            } catch (e) {
+                console.warn('ไม่สามารถอ่านข้อมูลจาก localStorage ได้', e);
+            }
+            renderTeamCards();
+        }
+
+        function renderTeamCards() {
+            const container = document.getElementById('team-cards-container');
+            container.innerHTML = teamData.members.map((name, idx) => `
+                <div class="bg-slate-950/85 border border-slate-800 rounded-xl p-4 flex items-center gap-3.5 hover:border-sky-500/40 transition">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500/20 to-emerald-500/20 border border-sky-500/30 flex items-center justify-center font-mono font-bold text-sky-400 shrink-0">
+                        ${idx + 1}
+                    </div>
+                    <div class="font-semibold text-slate-100 text-sm sm:text-base">
+                        ${escapeHtml(name)}
+                    </div>
+                </div>
+            `).join('');
+
+            document.getElementById('display-advisor').textContent = teamData.advisor;
+            document.getElementById('display-school').textContent = teamData.school;
+        }
+
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        function openEditTeamModal() {
+            const list = document.getElementById('edit-members-list');
+            list.innerHTML = '';
+            teamData.members.forEach((name) => {
+                addMemberInputRow(name);
+            });
+            document.getElementById('edit-advisor').value = teamData.advisor;
+            document.getElementById('edit-school').value = teamData.school;
+            document.getElementById('edit-team-modal').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function closeEditTeamModal() {
+            document.getElementById('edit-team-modal').classList.add('hidden');
+        }
+
+        function addMemberInputRow(value = '') {
+            const list = document.getElementById('edit-members-list');
+            const row = document.createElement('div');
+            row.className = 'flex items-center gap-2 member-input-row';
+            row.innerHTML = `
+                <input type="text" value="${escapeHtml(value)}" class="member-name-input w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:border-sky-500 outline-none" placeholder="ชื่อ-นามสกุล ผู้จัดทำ">
+                <button type="button" onclick="removeMemberInputRow(this)" class="p-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 border border-rose-500/30 transition shrink-0" title="ลบรายชื่อนี้">
+                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                </button>
+            `;
+            list.appendChild(row);
+            lucide.createIcons();
+        }
+
+        function removeMemberInputRow(btn) {
+            const rows = document.querySelectorAll('.member-input-row');
+            if (rows.length <= 1) {
+                showToast('ต้องมีรายชื่อคณะผู้จัดทำอย่างน้อย 1 คน', 'warning');
+                return;
+            }
+            btn.closest('.member-input-row').remove();
+        }
+
+        function saveTeamData() {
+            const inputs = document.querySelectorAll('.member-name-input');
+            const newMembers = [];
+            inputs.forEach(inp => {
+                const val = inp.value.trim();
+                if (val) newMembers.push(val);
+            });
+
+            if (newMembers.length === 0) {
+                showToast('กรุณากรอกรายชื่อผู้จัดทำอย่างน้อย 1 คน', 'error');
+                return;
+            }
+
+            teamData.members = newMembers;
+            teamData.advisor = document.getElementById('edit-advisor').value.trim() || 'นางสาวณัฐวรา เลิศอริยะพงษ์กุล';
+            teamData.school = document.getElementById('edit-school').value.trim() || 'โรงเรียนวิทยาศาสตร์จุฬาภรณราชวิทยาลัย สตูล';
+
+            try {
+                localStorage.setItem('z_circle_team_data_pcshs', JSON.stringify(teamData));
+            } catch (e) {
+                console.warn('ไม่สามารถบันทึกข้อมูลลง localStorage ได้', e);
+            }
+
+            renderTeamCards();
+            closeEditTeamModal();
+            showToast('บันทึกข้อมูลคณะผู้จัดทำเรียบร้อยแล้ว', 'success');
+        }
+
+        // ==========================================
+        // 6. Event Listeners & Initialization
+        // ==========================================
+        document.getElementById('input-n').addEventListener('change', (e) => {
+            const sVal = parseInt(document.getElementById('input-s').value, 10) || 1;
+            initSimulation(e.target.value, sVal);
+        });
+
+        document.getElementById('input-s').addEventListener('change', (e) => {
+            const nVal = parseInt(document.getElementById('input-n').value, 10) || 13;
+            initSimulation(nVal, e.target.value);
+        });
+
+        document.getElementById('sim-speed').addEventListener('change', () => {
+            if (state.isPlaying) {
+                pauseSimulation();
+                startSimulation();
+            }
+        });
+
+        window.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            buildReferenceTable();
+            loadTeamData();
+            initSimulation(13, 1); // เริ่มต้นด้วยกรณีศึกษา n = 13, S = 1 เหมือนภาพตัวอย่าง
+        });
+    </script>
+</body>
+</html>
